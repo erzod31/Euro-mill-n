@@ -9,47 +9,6 @@ import datetime
 st.set_page_config(page_title="EuroMillones Automático", page_icon="🎲", layout="centered")
 st.title("Generador Automático de EuroMillones")
 
-tema = st.selectbox("Selecciona el tema de la app:", ["Automático", "Claro", "Oscuro"], index=0)
-THEMES = {
-    "Claro": {
-        "primaryColor": "#2056AE",
-        "backgroundColor": "#fafaff",
-        "secondaryBackgroundColor": "#e1e6f7",
-        "textColor": "#0a0a0a",
-        "font": "sans serif"
-    },
-    "Oscuro": {
-        "primaryColor": "#D64B32",
-        "backgroundColor": "#16181f",
-        "secondaryBackgroundColor": "#262730",
-        "textColor": "#fafaff",
-        "font": "sans serif"
-    }
-}
-def set_theme_css(theme_name):
-    if theme_name in THEMES:
-        theme = THEMES[theme_name]
-        css = f"""
-        <style>
-            body {{
-                background-color: {theme['backgroundColor']} !important;
-                color: {theme['textColor']} !important;
-            }}
-            .stApp {{
-                background-color: {theme['backgroundColor']} !important;
-                color: {theme['textColor']} !important;
-            }}
-            .st-bh, .st-dg, .st-fc {{
-                background-color: {theme['secondaryBackgroundColor']} !important;
-                color: {theme['textColor']} !important;
-            }}
-        </style>
-        """
-        st.markdown(css, unsafe_allow_html=True)
-
-if tema in ["Claro", "Oscuro"]:
-    set_theme_css(tema)
-
 st.markdown("Se generan 5 combinaciones estadísticas posibles para el próximo sorteo.")
 
 def elegir_ponderado(counter, cantidad):
@@ -71,19 +30,18 @@ def calcular_proxima_fecha(fecha_ultima):
 if st.button("Generar 5 series posibles"):
     with st.spinner("Procesando datos internos de los últimos 6 meses..."):
         try:
-            # FUENTE OFICIAL ACTUALIZADA
-            URL_CSV = "https://data.lottery.ie/draw-games/euromillions/history.csv"
+            URL_CSV = "https://www.loterias.com/archivos/euromillones.csv"
             r = requests.get(URL_CSV, timeout=10)
             r.raise_for_status()
-            df = pd.read_csv(StringIO(r.text))
-            df['Draw Date'] = pd.to_datetime(df['Draw Date'], dayfirst=True)
-            fecha_ultima = df['Draw Date'].max().date()
+            df = pd.read_csv(StringIO(r.text), sep=',', header=0, parse_dates=['Fecha'])
+            df['Fecha'] = pd.to_datetime(df['Fecha'], dayfirst=True)
+            fecha_ultima = df['Fecha'].max().date()
             fecha_inicio = fecha_ultima - pd.DateOffset(months=6)
-            df_filtrado = df[df['Draw Date'] >= fecha_inicio]
+            df_filtrado = df[df['Fecha'] >= fecha_inicio]
             numeros, estrellas = [], []
             for _, fila in df_filtrado.iterrows():
-                numeros += [fila[f'Main Number {i}'] for i in range(1, 6)]
-                estrellas += [fila[f'Lucky Star {i}'] for i in range(1, 3)]
+                numeros += [fila[f'Bola {i}'] for i in range(1, 6)]
+                estrellas += [fila[f'Estrella {i}'] for i in range(1, 3)]
             conteo_numeros = Counter(numeros)
             conteo_estrellas = Counter(estrellas)
             proxima_fecha = calcular_proxima_fecha(fecha_ultima)
@@ -94,8 +52,8 @@ if st.button("Generar 5 series posibles"):
                 estrellas_elegidas = elegir_ponderado(conteo_estrellas, 2)
                 st.markdown(f"**Serie {i}:**  Números: `{nums_elegidos}`  |  Estrellas: `{estrellas_elegidas}`")
         except Exception as e:
-            st.error(f"Ocurrió un error al procesar los datos:\\n{str(e)}")
+            st.error(f"Ocurrió un error al procesar los datos:\n{str(e)}")
 else:
     st.info("Presiona el botón para ver tus 5 posibles combinaciones.")
 
-st.caption("Datos descargados automáticamente de la fuente oficial https://data.lottery.ie/draw-games/euromillions/history.csv")
+st.caption("Datos descargados automáticamente de https://www.loterias.com/archivos/euromillones.csv")
